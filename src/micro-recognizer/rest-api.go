@@ -22,7 +22,7 @@ const NbOfImagesToSend int = 200
 
 // DATABASE STRUCTS
 
-/* Parse PiFF files */
+/* PiFF file representation */
 type Meta struct {
 	Type string
 	URL  string
@@ -49,13 +49,13 @@ type PiFFStruct struct {
 	Parent   int
 }
 
-/* Our working structure */
+/* Struct of a database entry */
 type Picture struct {
 	// Id in db
 	Id []byte `json:"Id"`
 	// Piff
 	PiFF PiFFStruct `json:"PiFF"`
-	// Url fileserver
+	// Url in fileserver
 	Url string `json:"Url"`
 	// Flags
 	Annotated  bool `json:"Annotated"`
@@ -66,24 +66,16 @@ type Picture struct {
 
 // LAIA DAEMON STRUCTS
 
-/* Request sent */
+/* Images sent to recognizer */
 type LineImg struct {
-	Url string
 	Id  string
+	Url string
 }
 
-type ReqBody struct {
-	Images []LineImg
-}
-
-/* Response received */
+/* Response received from recognizer */
 type ImgValue struct {
 	Id    string
 	Value string
-}
-
-type ReqRes struct {
-	Images []ImgValue
 }
 
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
@@ -149,11 +141,11 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create requestGetPictures body
-	var reqBodyReco ReqBody
+	var reqBodyReco []LineImg
 	for _, picture := range pictures {
-		reqBodyReco.Images = append(reqBodyReco.Images, LineImg{
-			Url: picture.Url,
+		reqBodyReco = append(reqBodyReco, LineImg{
 			Id:  string(picture.Id),
+			Url: picture.Url,
 		})
 	}
 
