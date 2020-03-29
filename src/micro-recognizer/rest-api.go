@@ -220,28 +220,35 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 	client := &http.Client{}
 
-	pictures, err := getPictures(client, w)
-	if err != nil {
-		return
-	}
+	// we repeat the operation until there isn't anymore images to translate with the recognizer
 
-	// create body to send to recognizer
-	var lineImgs []LineImg
-	for _, picture := range pictures {
-		lineImgs = append(lineImgs, LineImg{
-			Id:  string(picture.Id),
-			Url: picture.Url,
-		})
-	}
+	var receivedPictures = 200
+	// golang version of a while
+	for receivedPictures == 200 {
+		pictures, err := getPictures(client, w)
+		if err != nil {
+			return
+		}
+		receivedPictures = len(pictures)
 
-	resBody, err := getSuggestionsFromReco(lineImgs, client, w)
-	if err != nil {
-		return
-	}
+		// create body to send to recognizer
+		var lineImgs []LineImg
+		for _, picture := range pictures {
+			lineImgs = append(lineImgs, LineImg{
+				Id:  string(picture.Id),
+				Url: picture.Url,
+			})
+		}
 
-	err = updatePictures(resBody, client, w)
-	if err != nil {
-		return
+		resBody, err := getSuggestionsFromReco(lineImgs, client, w)
+		if err != nil {
+			return
+		}
+
+		err = updatePictures(resBody, client, w)
+		if err != nil {
+			return
+		}
 	}
 
 	// everything went fine, we send back a response
