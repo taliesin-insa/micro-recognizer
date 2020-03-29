@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -72,62 +74,50 @@ type LineImg struct {
 	Url string
 }
 
-/* Response received from recognizer */
-type ImgValue struct {
-	Id    string
-	Value string
-}
-
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
-//////////////////// API FUNCTIONS ////////////////////
-func home(w http.ResponseWriter, r *http.Request) {
-	log.Printf("HomeLink joined")
-	fmt.Fprint(w, "[MICRO-RECOGNIZER] HomeLink joined")
-}
+/* Request to retrieve a given number of pictures from the database */
+func getPictures(client *http.Client, w http.ResponseWriter) ([]Picture, error) {
 
-func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
-	// get Pictures to send to recognizer from database
-	client := &http.Client{}
-	requestGetPictures, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+string(NbOfImagesToSend), nil)
+	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+string(NbOfImagesToSend), nil)
 	if err != nil {
 		log.Printf("[ERROR] Get request to DB: %v", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make GET request to database"))
-		return
+		return nil, err
 	}
 
-	responseGetPictures, err := client.Do(requestGetPictures)
+	response, err := client.Do(request)
 	if err != nil {
 		log.Printf("[ERROR] Error executing GET request to DB: %v", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't retrieve images from database"))
-		return
+		return nil, err
 	}
 
 	// check that received body isn't empty
-	if responseGetPictures.Body == nil {
+	if response.Body == nil {
 		log.Printf("[ERROR] Database: received body is empty")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("[MICRO-RECOGNIZER] Empty data received from database"))
-		return
+		return nil, err
 	}
 
-	// check whether there was an error during requestGetPictures
-	if responseGetPictures.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to DB: %v", responseGetPictures.Body)
-		w.WriteHeader(responseGetPictures.StatusCode)
+	// check whether there was an error during request
+	if response.StatusCode != http.StatusOK {
+		log.Printf("[ERROR] Error during GET request to DB: %v", response.Body)
+		w.WriteHeader(response.StatusCode)
 		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
-		return
+		return nil, errors.New("bad status")
 	}
 
 	// get body of returned data
-	body, err := ioutil.ReadAll(responseGetPictures.Body)
+	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Printf("[ERROR] Read data: %v", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't read data from database"))
-		return
+		return nil, err
 	}
 
 	// transform json into struct
@@ -137,85 +127,125 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[ERROR] Database: unmarshal data: %v", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't unmarshal data received from database"))
+		return nil, err
+	}
+
+	return pictures, nil
+}
+
+/* Request that sends images to the recognizer and gets in return a suggestion of transcription for each image */
+func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client, w http.ResponseWriter) (io.ReadCloser, error) {
+	// transform the request body into JSON
+	reqBodyJSON, err := json.Marshal(lineImgs)
+	if err != nil {
+		log.Printf("[ERROR] Fail marshalling request body to JSON:\n%v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error formatting request for recognizer"))
+		return nil, err
+	}
+
+	// create and send request to recognizer
+	request, err := http.NewRequest(http.MethodGet, LaiaDaemonAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyJSON))
+	if err != nil {
+		log.Printf("[ERROR] Get request: %v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make GET request to recognizer"))
+		return nil, err
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("[ERROR] Error executing GET request to recognizer: %v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("[MICRO-EXPORT] Couldn't contact the recognizer"))
+		return nil, err
+	}
+
+	// check that received body isn't empty
+	if response.Body == nil {
+		log.Printf("[ERROR] Recognizer: received body is empty")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("[MICRO-RECOGNIZER] Empty data received from recognizer"))
+		return nil, err
+	}
+
+	// check whether there was an error during request
+	if response.StatusCode != http.StatusOK {
+		log.Printf("[ERROR] Error during GET request to recognizer: %v", response.Body)
+		w.WriteHeader(response.StatusCode)
+		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting recognizer"))
+		return nil, errors.New("bad status")
+	}
+
+	return response.Body, nil
+}
+
+/* Request to send suggestions made by the recognizer to the database */
+func updatePictures(reqBody io.ReadCloser, client *http.Client, w http.ResponseWriter) error {
+	// send recognizer's suggestions to database
+	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/", reqBody)
+	if err != nil {
+		log.Printf("[ERROR] PUT request to DB: %v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make PUT request to database"))
+		return err
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("[ERROR] Error executing PUT request to DB: %v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't send suggestions to database"))
+		return err
+	}
+
+	// check whether there was an error during requestGetPictures
+	if response.StatusCode != http.StatusOK {
+		log.Printf("[ERROR] Error during PUT request to DB: %v", response.Body)
+		w.WriteHeader(response.StatusCode)
+		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
+		return errors.New("bad status")
+	}
+
+	return nil
+}
+
+//////////////////// API FUNCTIONS ////////////////////
+func home(w http.ResponseWriter, r *http.Request) {
+	log.Printf("HomeLink joined")
+	fmt.Fprint(w, "[MICRO-RECOGNIZER] HomeLink joined")
+}
+
+func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
+
+	client := &http.Client{}
+
+	pictures, err := getPictures(client, w)
+	if err != nil {
 		return
 	}
 
-	// create requestGetPictures body
-	var reqBodyReco []LineImg
+	// create body to send to recognizer
+	var lineImgs []LineImg
 	for _, picture := range pictures {
-		reqBodyReco = append(reqBodyReco, LineImg{
+		lineImgs = append(lineImgs, LineImg{
 			Id:  string(picture.Id),
 			Url: picture.Url,
 		})
 	}
 
-	// transform the request body into JSON
-	reqBodyRecoJSON, err := json.Marshal(reqBodyReco)
+	resBody, err := getSuggestionsFromReco(lineImgs, client, w)
 	if err != nil {
-		log.Printf("[ERROR] Fail marshalling request body to JSON:\n%v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error formatting request to recognizer"))
 		return
 	}
 
-	// create and send request to recognizer
-	requestReco, err := http.NewRequest(http.MethodGet, LaiaDaemonAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyRecoJSON))
+	err = updatePictures(resBody, client, w)
 	if err != nil {
-		log.Printf("[ERROR] Get requestReco: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make GET request to recognizer"))
 		return
 	}
 
-	responseReco, err := client.Do(requestReco)
-	if err != nil {
-		log.Printf("[ERROR] Error executing GET request to recognizer: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-EXPORT] Couldn't contact the recognizer"))
-		return
-	}
-
-	// check that received body isn't empty
-	if responseReco.Body == nil {
-		log.Printf("[ERROR] Recognizer: received body is empty")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Empty data received from recognizer"))
-		return
-	}
-
-	// check whether there was an error during request
-	if responseReco.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET requestGetPictures to DB: %v", responseReco.Body)
-		w.WriteHeader(responseGetPictures.StatusCode)
-		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
-		return
-	}
-
-	// send recognizer's suggestions to database
-	requestUpdatePictures, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/", responseReco.Body)
-	if err != nil {
-		log.Printf("[ERROR] PUT request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make PUT request to database"))
-		return
-	}
-
-	responseUpdatePictures, err := client.Do(requestUpdatePictures)
-	if err != nil {
-		log.Printf("[ERROR] Error executing PUT request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't send suggestions to database"))
-		return
-	}
-
-	// check whether there was an error during requestGetPictures
-	if responseUpdatePictures.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during PUT request to DB: %v", responseUpdatePictures.Body)
-		w.WriteHeader(responseUpdatePictures.StatusCode)
-		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
-		return
-	}
-
+	// everything went fine, we send back a response
+	w.WriteHeader(http.StatusOK)
 }
 
 //////////////////// MAIN ////////////////////
