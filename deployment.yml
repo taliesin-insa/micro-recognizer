@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recognizer
+  namespace: gitlab-managed-apps
+  labels:
+    app: recognizer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: recognizer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 33%
+  template:
+    metadata:
+      labels:
+        app: recognizer
+    spec:
+      containers:
+        - name: recognizer
+          image: clyde.local:5005/taliesin/micro-recognizer/master:prod
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: "/snippets/"
+              name: file-server
+          env:
+            - name: MICRO_ENVIRONMENT
+              value: "production"
+            - name: DATABASE_API_URL
+              value: "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
+      volumes:
+        - name: file-server
+          persistentVolumeClaim:
+            claimName: file-server-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recognizer-dev
+  namespace: gitlab-managed-apps
+  labels:
+    app: recognizer-dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: recognizer-dev
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 33%
+  template:
+    metadata:
+      labels:
+        app: recognizer-dev
+    spec:
+      containers:
+        - name: recognizer-dev
+          image: clyde.local:5005/taliesin/micro-recognizer/master:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: "/snippets/"
+              name: file-server-dev
+          env:
+            - name: MICRO_ENVIRONMENT
+              value: "dev"
+            - name: DATABASE_API_URL
+              value: "http://database-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
+      volumes:
+        - name: file-server-dev
+          persistentVolumeClaim:
+            claimName: file-server-dev-claim
