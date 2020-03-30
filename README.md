@@ -2,6 +2,10 @@
 
 Microservice that calls the daemon running on a distant server, to get automatic transcriptions of images, via a text recognizer.
 
+## Exposed REST API
+
+See [the API specification](api.md).
+
 ## Commits
 The title of a commit must follow this pattern : \<type>(\<scope>): \<subject>
 
