@@ -56,17 +56,19 @@ type Picture struct {
 	// Id in db
 	Id []byte `json:"Id"`
 	// Piff
-	PiFF PiFFStruct `json:"PiFF"`
-	// Url in fileserver
-	Url string `json:"Url"`
+	PiFF     PiFFStruct `json:"PiFF"`
+	Url      string     `json:"Url"`      //The URL on our fileserver
+	Filename string     `json:"Filename"` //The original name of the file
 	// Flags
 	Annotated  bool `json:"Annotated"`
 	Corrected  bool `json:"Corrected"`
 	SentToReco bool `json:"SentToReco"`
 	Unreadable bool `json:"Unreadable"`
+	//
+	Annotator string `json:"Annotator"`
 }
 
-// LAIA DAEMON STRUCTS
+// LAIA DAEMON STRUCT
 
 /* Images sent to recognizer */
 type LineImg struct {
