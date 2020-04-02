@@ -83,46 +83,36 @@ type LineImg struct {
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
 /* Request to retrieve a given number of pictures from the database */
-func getPictures(client *http.Client, w http.ResponseWriter) ([]Picture, error) {
+func getPictures(client *http.Client) ([]Picture, error) {
 
 	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+string(NbOfImagesToSend), nil)
 	if err != nil {
-		log.Printf("[ERROR] Get request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make GET request to database"))
+		log.Printf("[ERROR] Create GET request to DB: %v", err.Error())
 		return nil, err
 	}
 
 	response, err := client.Do(request)
 	if err != nil {
-		log.Printf("[ERROR] Error executing GET request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't retrieve images from database"))
+		log.Printf("[ERROR] Execute GET request to DB: %v", err.Error())
 		return nil, err
 	}
 
 	// check that received body isn't empty
 	if response.Body == nil {
 		log.Printf("[ERROR] Database: received body is empty")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Empty data received from database"))
 		return nil, err
 	}
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
 		log.Printf("[ERROR] Error during GET request to DB: %v", response.Body)
-		w.WriteHeader(response.StatusCode)
-		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
 		return nil, errors.New("bad status")
 	}
 
 	// get body of returned data
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Printf("[ERROR] Read data: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't read data from database"))
+		log.Printf("[ERROR] Couldn't read received data: %v", err.Error())
 		return nil, err
 	}
 
@@ -131,8 +121,6 @@ func getPictures(client *http.Client, w http.ResponseWriter) ([]Picture, error) 
 	err = json.Unmarshal(body, &pictures)
 	if err != nil {
 		log.Printf("[ERROR] Database: unmarshal data: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't unmarshal data received from database"))
 		return nil, err
 	}
 
@@ -140,46 +128,36 @@ func getPictures(client *http.Client, w http.ResponseWriter) ([]Picture, error) 
 }
 
 /* Request that sends images to the recognizer and gets in return a suggestion of transcription for each image */
-func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client, w http.ResponseWriter) (io.ReadCloser, error) {
+func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadCloser, error) {
 	// transform the request body into JSON
 	reqBodyJSON, err := json.Marshal(lineImgs)
 	if err != nil {
 		log.Printf("[ERROR] Fail marshalling request body to JSON:\n%v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error formatting request for recognizer"))
 		return nil, err
 	}
 
 	// create and send request to recognizer
 	request, err := http.NewRequest(http.MethodGet, LaiaDaemonAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyJSON))
 	if err != nil {
-		log.Printf("[ERROR] Get request: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make GET request to recognizer"))
+		log.Printf("[ERROR] Create GET request to recognizer: %v", err.Error())
 		return nil, err
 	}
 
 	response, err := client.Do(request)
 	if err != nil {
-		log.Printf("[ERROR] Error executing GET request to recognizer: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-EXPORT] Couldn't contact the recognizer"))
+		log.Printf("[ERROR] Execute GET request to recognizer: %v", err.Error())
 		return nil, err
 	}
 
 	// check that received body isn't empty
 	if response.Body == nil {
 		log.Printf("[ERROR] Recognizer: received body is empty")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Empty data received from recognizer"))
 		return nil, err
 	}
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
 		log.Printf("[ERROR] Error during GET request to recognizer: %v", response.Body)
-		w.WriteHeader(response.StatusCode)
-		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting recognizer"))
 		return nil, errors.New("bad status")
 	}
 
@@ -187,29 +165,23 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client, w http.Resp
 }
 
 /* Request to send suggestions made by the recognizer to the database */
-func updatePictures(reqBody io.ReadCloser, client *http.Client, w http.ResponseWriter) error {
+func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 	// send recognizer's suggestions to database, identified with a unique annotator's id
 	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/"+RecoAnnotatorId, reqBody)
 	if err != nil {
-		log.Printf("[ERROR] PUT request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't make PUT request to database"))
+		log.Printf("[ERROR] Create PUT request to DB: %v", err.Error())
 		return err
 	}
 
 	response, err := client.Do(request)
 	if err != nil {
-		log.Printf("[ERROR] Error executing PUT request to DB: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("[MICRO-RECOGNIZER] Couldn't send suggestions to database"))
+		log.Printf("[ERROR] Execute PUT request to DB: %v", err.Error())
 		return err
 	}
 
 	// check whether there was an error during requestGetPictures
 	if response.StatusCode != http.StatusOK {
 		log.Printf("[ERROR] Error during PUT request to DB: %v", response.Body)
-		w.WriteHeader(response.StatusCode)
-		w.Write([]byte("[MICRO-RECOGNIZER] Error while contacting database"))
 		return errors.New("bad status")
 	}
 
@@ -224,6 +196,9 @@ func home(w http.ResponseWriter, r *http.Request) {
 
 func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
+	// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
+	w.WriteHeader(http.StatusAccepted)
+
 	client := &http.Client{}
 
 	// we repeat the operation until there isn't anymore images to translate with the recognizer
@@ -231,7 +206,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	var receivedPictures = 200
 	// golang version of a while
 	for receivedPictures == 200 {
-		pictures, err := getPictures(client, w)
+		pictures, err := getPictures(client)
 		if err != nil {
 			return
 		}
@@ -246,19 +221,17 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		resBody, err := getSuggestionsFromReco(lineImgs, client, w)
+		resBody, err := getSuggestionsFromReco(lineImgs, client)
 		if err != nil {
 			return
 		}
 
-		err = updatePictures(resBody, client, w)
+		err = updatePictures(resBody, client)
 		if err != nil {
 			return
 		}
 	}
 
-	// everything went fine, we send back a response
-	w.WriteHeader(http.StatusOK)
 }
 
 //////////////////// MAIN ////////////////////
