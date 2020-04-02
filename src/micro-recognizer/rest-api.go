@@ -16,9 +16,13 @@ import (
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
 
-const LaiaDaemonAPI string = "http://raoh.fr:12191"
+const (
+	LaiaDaemonAPI string = "http://raoh.fr:12191"
 
-const NbOfImagesToSend int = 200
+	NbOfImagesToSend int = 200
+
+	RecoAnnotatorId string = "$taliesin_recognizer"
+)
 
 //////////////////// STRUCTS ////////////////////
 
@@ -184,8 +188,8 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client, w http.Resp
 
 /* Request to send suggestions made by the recognizer to the database */
 func updatePictures(reqBody io.ReadCloser, client *http.Client, w http.ResponseWriter) error {
-	// send recognizer's suggestions to database
-	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/", reqBody)
+	// send recognizer's suggestions to database, identified with a unique annotator's id
+	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/"+RecoAnnotatorId, reqBody)
 	if err != nil {
 		log.Printf("[ERROR] PUT request to DB: %v", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
