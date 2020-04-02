@@ -210,7 +210,11 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		
 		receivedPictures = len(pictures)
+		if receivedPictures == 0 {
+			return
+		}
 
 		// create body to send to recognizer
 		var lineImgs []LineImg
