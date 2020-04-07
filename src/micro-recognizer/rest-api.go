@@ -218,9 +218,8 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 				Id:  string(picture.Id),
 				Url: picture.Url,
 			})
+			log.Printf("[INFO] Before = %v, after = %v", picture.Id, string(picture.Id))
 		}
-
-		log.Printf("[INFO] received data: %+v", &lineImgs)
 
 		resBody, err := getSuggestionsFromReco(lineImgs)
 		if err != nil {
