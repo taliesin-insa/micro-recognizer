@@ -109,7 +109,7 @@ func getPictures(client *http.Client) ([]Picture, error) {
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to DB: %v", response.Body)
+		log.Printf("[ERROR] Error during GET request to DB: %d, %v", response.StatusCode, response.Body)
 		return nil, errors.New("bad status")
 	}
 
