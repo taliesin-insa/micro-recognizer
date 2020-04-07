@@ -145,6 +145,8 @@ func getSuggestionsFromReco(lineImgs []LineImg) ([]byte, error) {
 		})
 	}
 
+	log.Printf("[INFO] returned data: %v", &valuesUpdate)
+
 	// transform the request body into JSON
 	reqBodyJSON, err := json.Marshal(valuesUpdate)
 	if err != nil {
