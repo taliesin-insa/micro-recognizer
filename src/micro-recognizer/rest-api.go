@@ -145,8 +145,6 @@ func getSuggestionsFromReco(lineImgs []LineImg) ([]byte, error) {
 		})
 	}
 
-	log.Printf("[INFO] returned data: %v", &valuesUpdate)
-
 	// transform the request body into JSON
 	reqBodyJSON, err := json.Marshal(valuesUpdate)
 	if err != nil {
@@ -221,6 +219,8 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 				Url: picture.Url,
 			})
 		}
+
+		log.Printf("[INFO] received data: %+v", &lineImgs)
 
 		resBody, err := getSuggestionsFromReco(lineImgs)
 		if err != nil {
