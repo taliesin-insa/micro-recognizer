@@ -173,7 +173,8 @@ func updatePictures(reqBody []byte, client *http.Client) error {
 
 	// check whether there was an error during requestGetPictures
 	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during PUT request to DB: %v", response.Body)
+		var body, _ = ioutil.ReadAll(response.Body)
+		log.Printf("[ERROR] Error during PUT request to DB: %v", string(body))
 		return errors.New("bad status")
 	}
 
