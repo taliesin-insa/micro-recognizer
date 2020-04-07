@@ -76,12 +76,12 @@ type Picture struct {
 
 /* Images sent to recognizer */
 type LineImg struct {
-	Id  string
+	Id  []byte
 	Url string
 }
 
 type ValueUpdate struct {
-	Id    string
+	Id    []byte
 	Value string
 }
 
@@ -215,7 +215,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		var lineImgs []LineImg
 		for _, picture := range pictures {
 			lineImgs = append(lineImgs, LineImg{
-				Id:  string(picture.Id),
+				Id:  picture.Id,
 				Url: picture.Url,
 			})
 			log.Printf("[INFO] Before = %v, after = %v", picture.Id, string(picture.Id))
