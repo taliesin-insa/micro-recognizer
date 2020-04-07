@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: micro-recognizer-waker
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/1 * * * *"
   jobTemplate:
     spec:
       template:
@@ -14,7 +14,7 @@ spec:
             args:
             - /bin/sh
             - -c
-            - curl -X POST "http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs"
+            - curl -X POST http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs
 
           restartPolicy: OnFailure
 
