@@ -174,7 +174,7 @@ func updatePictures(reqBody []byte, client *http.Client) error {
 	// check whether there was an error during requestGetPictures
 	if response.StatusCode != http.StatusOK {
 		var body, _ = ioutil.ReadAll(response.Body)
-		log.Printf("[ERROR] Error during PUT request to DB: %v", string(body))
+		log.Printf("[ERROR] Error during PUT request to DB: %d, %v", response.StatusCode, string(body))
 		return errors.New("bad status")
 	}
 
@@ -218,7 +218,6 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 				Id:  picture.Id,
 				Url: picture.Url,
 			})
-			log.Printf("[INFO] Before = %v, after = %v", picture.Id, string(picture.Id))
 		}
 
 		resBody, err := getSuggestionsFromReco(lineImgs)
@@ -233,7 +232,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("sendImgs finished")
-
+	return
 }
 
 //////////////////// MAIN ////////////////////
