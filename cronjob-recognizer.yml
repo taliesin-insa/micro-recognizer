@@ -4,6 +4,8 @@ metadata:
   name: micro-recognizer-waker
 spec:
   schedule: "*/1 * * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
       template:
@@ -12,7 +14,7 @@ spec:
           - name: micro-recognizer-waker
             image: byrnedo/alpine-curl
             command: ["/bin/sh"]
-            args: ["-ec", "curl -X POST \"http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
+            args: ["-c", "curl -X POST \"http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
             
           restartPolicy: OnFailure
 
