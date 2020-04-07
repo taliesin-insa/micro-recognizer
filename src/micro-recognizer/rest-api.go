@@ -18,7 +18,7 @@ import (
 var DatabaseAPI string
 
 const (
-	LaiaDaemonAPI string = "http://raoh.fr:12191"
+	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
 	NbOfImagesToSend int = 200
 
