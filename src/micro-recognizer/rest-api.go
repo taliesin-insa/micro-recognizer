@@ -186,6 +186,8 @@ func home(w http.ResponseWriter, r *http.Request) {
 
 func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
+	log.Printf("sendImgs joined")
+
 	// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 	w.WriteHeader(http.StatusAccepted)
 
@@ -225,6 +227,8 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	log.Printf("sendImgs finished")
 
 }
 
