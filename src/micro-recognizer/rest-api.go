@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 //////////////////// CONSTS ////////////////////
@@ -89,7 +90,7 @@ type ValueUpdate struct {
 /* Request to retrieve a given number of pictures from the database */
 func getPictures(client *http.Client) ([]Picture, error) {
 
-	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+string(NbOfImagesToSend), nil)
+	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+strconv.Itoa(NbOfImagesToSend), nil)
 	if err != nil {
 		log.Printf("[ERROR] Create GET request to DB: %v", err.Error())
 		return nil, err
