@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -80,6 +79,11 @@ type LineImg struct {
 	Url string
 }
 
+type ValueUpdate struct {
+	Id    string
+	Value string
+}
+
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
 /* Request to retrieve a given number of pictures from the database */
@@ -128,46 +132,32 @@ func getPictures(client *http.Client) ([]Picture, error) {
 }
 
 /* Request that sends images to the recognizer and gets in return a suggestion of transcription for each image */
-func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadCloser, error) {
+func getSuggestionsFromReco(lineImgs []LineImg) ([]byte, error) {
+
+	var valuesUpdate []ValueUpdate
+
+	for _, element := range lineImgs {
+		valuesUpdate = append(valuesUpdate, ValueUpdate{
+			Id:    element.Id,
+			Value: "MOCK text from reco",
+		})
+	}
+
 	// transform the request body into JSON
-	reqBodyJSON, err := json.Marshal(lineImgs)
+	reqBodyJSON, err := json.Marshal(valuesUpdate)
 	if err != nil {
 		log.Printf("[ERROR] Fail marshalling request body to JSON:\n%v", err.Error())
 		return nil, err
 	}
 
-	// create and send request to recognizer
-	request, err := http.NewRequest(http.MethodGet, LaiaDaemonAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyJSON))
-	if err != nil {
-		log.Printf("[ERROR] Create GET request to recognizer: %v", err.Error())
-		return nil, err
-	}
-
-	response, err := client.Do(request)
-	if err != nil {
-		log.Printf("[ERROR] Execute GET request to recognizer: %v", err.Error())
-		return nil, err
-	}
-
-	// check that received body isn't empty
-	if response.Body == nil {
-		log.Printf("[ERROR] Recognizer: received body is empty")
-		return nil, err
-	}
-
-	// check whether there was an error during request
-	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to recognizer: %v", response.Body)
-		return nil, errors.New("bad status")
-	}
-
-	return response.Body, nil
+	return reqBodyJSON, nil
 }
 
 /* Request to send suggestions made by the recognizer to the database */
-func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
+func updatePictures(reqBody []byte, client *http.Client) error {
+
 	// send recognizer's suggestions to database, identified with a unique annotator's id
-	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/"+RecoAnnotatorId, reqBody)
+	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/"+RecoAnnotatorId, bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Printf("[ERROR] Create PUT request to DB: %v", err.Error())
 		return err
@@ -210,7 +200,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		
+
 		receivedPictures = len(pictures)
 		if receivedPictures == 0 {
 			return
@@ -225,7 +215,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		resBody, err := getSuggestionsFromReco(lineImgs, client)
+		resBody, err := getSuggestionsFromReco(lineImgs)
 		if err != nil {
 			return
 		}
