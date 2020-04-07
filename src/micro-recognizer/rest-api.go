@@ -201,7 +201,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 
 func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
-	log.Printf("sendImgs joined")
+	log.Printf("[INFO] sendImgs joined")
 
 	// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 	w.WriteHeader(http.StatusAccepted)
@@ -213,10 +213,14 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	var receivedPictures = 200
 	// golang version of a while
 	for receivedPictures == 200 {
+		log.Printf("[INFO] ===== New turn =====")
+
 		pictures, err := getPictures(client)
 		if err != nil {
 			return
 		}
+
+		log.Printf("[INFO] Pictures received")
 
 		receivedPictures = len(pictures)
 		if receivedPictures == 0 {
@@ -237,13 +241,17 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		log.Printf("[INFO] Suggestions received")
+
 		err = updatePictures(resBody, client)
 		if err != nil {
 			return
 		}
+
+		log.Printf("[INFO] Pictures updated")
 	}
 
-	log.Printf("sendImgs finished")
+	log.Printf("[INFO] sendImgs finished")
 	return
 }
 
