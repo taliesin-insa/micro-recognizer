@@ -13,8 +13,8 @@ spec:
             image: byrnedo/alpine-curl
             args:
             - /bin/sh
-            - -c
-            - curl -X POST http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs
+            - -ec
+            - curl -X POST "http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs"
 
           restartPolicy: OnFailure
 
