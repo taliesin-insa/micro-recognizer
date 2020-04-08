@@ -224,6 +224,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 		receivedPictures = len(pictures)
 		if receivedPictures == 0 {
+			log.Printf("[INFO] No image to send to recognizer (0 received)")
 			return
 		}
 
