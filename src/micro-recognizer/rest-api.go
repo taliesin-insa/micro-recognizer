@@ -16,11 +16,12 @@ import (
 
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
+var FileServerURL string
 
 const (
 	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
-	NbOfImagesToSend int = 200
+	NbOfImagesToSend int = 2
 
 	RecoAnnotatorId string = "$taliesin_recognizer"
 )
@@ -233,7 +234,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		for _, picture := range pictures {
 			lineImgs = append(lineImgs, LineImg{
 				Id:  picture.Id,
-				Url: picture.Url,
+				Url: FileServerURL + picture.Url,
 			})
 		}
 
@@ -258,12 +259,21 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 //////////////////// MAIN ////////////////////
 func main() {
+	// get environment variables
 	dbEnvVal, dbEnvExists := os.LookupEnv("DATABASE_API_URL")
 
 	if dbEnvExists {
 		DatabaseAPI = dbEnvVal
 	} else {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
+	}
+
+	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
+
+	if fileServerEnvExists {
+		FileServerURL = fileServerEnvVal
+	} else {
+		FileServerURL = "http://inky.local:9501"
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
