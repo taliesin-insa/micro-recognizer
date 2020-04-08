@@ -160,7 +160,8 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadClo
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to recognizer: %v", response.Body)
+		var body, _ = ioutil.ReadAll(response.Body)
+		log.Printf("[ERROR] Error during GET request to recognizer: %v", string(body))
 		return nil, errors.New("bad status")
 	}
 
