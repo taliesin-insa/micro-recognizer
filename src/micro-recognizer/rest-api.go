@@ -216,9 +216,9 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 	// we repeat the operation until there isn't anymore images to translate with the recognizer
 
-	var receivedPictures = 200
+	var receivedPictures = NbOfImagesToSend
 	// golang version of a while
-	for receivedPictures == 200 {
+	for receivedPictures == NbOfImagesToSend {
 		log.Printf("[INFO] ===== New turn =====")
 
 		pictures, err := getPictures(client)
