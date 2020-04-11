@@ -21,7 +21,7 @@ var FileServerURL string
 const (
 	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
-	NbOfImagesToSend int = 2
+	NbOfImagesToSend int = 25
 
 	RecoAnnotatorId string = "$taliesin_recognizer"
 )
@@ -217,9 +217,10 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	// we repeat the operation until there isn't anymore images to translate with the recognizer
 
 	var receivedPictures = NbOfImagesToSend
+	var count = 1
 	// golang version of a while
 	for receivedPictures == NbOfImagesToSend {
-		log.Printf("[INFO] ===== New turn =====")
+		log.Printf("[INFO] ===== Turn %d =====", count)
 
 		pictures, err := getPictures(client)
 		if err != nil {
@@ -256,6 +257,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Printf("[INFO] Pictures updated")
+		count++
 	}
 
 	log.Printf("[INFO] sendImgs finished")
