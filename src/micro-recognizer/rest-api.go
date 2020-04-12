@@ -192,7 +192,7 @@ func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 			log.Printf("[ERROR] Error during PUT request to DB: %d, %v", response.StatusCode, string(body))
 			return errors.New("bad status")
 		} else {
-			log.Printf("[WARNING] Minor rrror during PUT request to DB, status received= %d, expected=204, body=%v", response.StatusCode, string(body))
+			log.Printf("[WARNING] Minor error during PUT request to DB, status received= %d, expected=204, body=%v", response.StatusCode, string(body))
 		}
 	}
 
