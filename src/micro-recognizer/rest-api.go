@@ -11,15 +11,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
+var FileServerURL string
 
 const (
-	LaiaDaemonAPI string = "http://raoh.fr:12191"
+	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
-	NbOfImagesToSend int = 200
+	NbOfImagesToSend int = 25
 
 	RecoAnnotatorId string = "$taliesin_recognizer"
 )
@@ -76,7 +78,7 @@ type Picture struct {
 
 /* Images sent to recognizer */
 type LineImg struct {
-	Id  string
+	Id  []byte
 	Url string
 }
 
@@ -85,7 +87,7 @@ type LineImg struct {
 /* Request to retrieve a given number of pictures from the database */
 func getPictures(client *http.Client) ([]Picture, error) {
 
-	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+string(NbOfImagesToSend), nil)
+	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/recognizer/"+strconv.Itoa(NbOfImagesToSend), nil)
 	if err != nil {
 		log.Printf("[ERROR] Create GET request to DB: %v", err.Error())
 		return nil, err
@@ -105,7 +107,8 @@ func getPictures(client *http.Client) ([]Picture, error) {
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to DB: %v", response.Body)
+		var body, _ = ioutil.ReadAll(response.Body)
+		log.Printf("[ERROR] Error during GET request to DB: %d, %v", response.StatusCode, string(body))
 		return nil, errors.New("bad status")
 	}
 
@@ -157,15 +160,18 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadClo
 
 	// check whether there was an error during request
 	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during GET request to recognizer: %v", response.Body)
+		var body, _ = ioutil.ReadAll(response.Body)
+		log.Printf("[ERROR] Error during GET request to recognizer: %v", string(body))
 		return nil, errors.New("bad status")
 	}
 
 	return response.Body, nil
+
 }
 
 /* Request to send suggestions made by the recognizer to the database */
 func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
+
 	// send recognizer's suggestions to database, identified with a unique annotator's id
 	request, err := http.NewRequest(http.MethodPut, DatabaseAPI+"/db/update/value/"+RecoAnnotatorId, reqBody)
 	if err != nil {
@@ -180,9 +186,14 @@ func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 	}
 
 	// check whether there was an error during requestGetPictures
-	if response.StatusCode != http.StatusOK {
-		log.Printf("[ERROR] Error during PUT request to DB: %v", response.Body)
-		return errors.New("bad status")
+	if response.StatusCode != http.StatusNoContent {
+		var body, _ = ioutil.ReadAll(response.Body)
+		if response.StatusCode < 200 || response.StatusCode > 300 {
+			log.Printf("[ERROR] Error during PUT request to DB: %d, %v", response.StatusCode, string(body))
+			return errors.New("bad status")
+		} else {
+			log.Printf("[WARNING] Minor error during PUT request to DB, status received= %d, expected=204, body=%v", response.StatusCode, string(body))
+		}
 	}
 
 	return nil
@@ -196,6 +207,8 @@ func home(w http.ResponseWriter, r *http.Request) {
 
 func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
+	log.Printf("[INFO] sendImgs joined")
+
 	// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 	w.WriteHeader(http.StatusAccepted)
 
@@ -203,16 +216,22 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 	// we repeat the operation until there isn't anymore images to translate with the recognizer
 
-	var receivedPictures = 200
+	var receivedPictures = NbOfImagesToSend
+	var count = 1
 	// golang version of a while
-	for receivedPictures == 200 {
+	for receivedPictures == NbOfImagesToSend {
+		log.Printf("[INFO] ===== Turn %d =====", count)
+
 		pictures, err := getPictures(client)
 		if err != nil {
 			return
 		}
-		
+
+		log.Printf("[INFO] Pictures received")
+
 		receivedPictures = len(pictures)
 		if receivedPictures == 0 {
+			log.Printf("[INFO] No more images to send to recognizer (0 received)\nsendImgs finished")
 			return
 		}
 
@@ -220,8 +239,8 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		var lineImgs []LineImg
 		for _, picture := range pictures {
 			lineImgs = append(lineImgs, LineImg{
-				Id:  string(picture.Id),
-				Url: picture.Url,
+				Id:  picture.Id,
+				Url: FileServerURL + picture.Url,
 			})
 		}
 
@@ -230,22 +249,38 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		log.Printf("[INFO] Suggestions received")
+
 		err = updatePictures(resBody, client)
 		if err != nil {
 			return
 		}
+
+		log.Printf("[INFO] Pictures updated")
+		count++
 	}
 
+	log.Printf("[INFO] sendImgs finished")
+	return
 }
 
 //////////////////// MAIN ////////////////////
 func main() {
+	// get environment variables
 	dbEnvVal, dbEnvExists := os.LookupEnv("DATABASE_API_URL")
 
 	if dbEnvExists {
 		DatabaseAPI = dbEnvVal
 	} else {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
+	}
+
+	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
+
+	if fileServerEnvExists {
+		FileServerURL = fileServerEnvVal
+	} else {
+		FileServerURL = "http://inky.local:9501"
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
