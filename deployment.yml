@@ -34,7 +34,7 @@ spec:
             - name: DATABASE_API_URL
               value: "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
-              value: "http://inky.local:9501"
+              value: "https://inky.local:9501"
 
       volumes:
         - name: file-server
@@ -78,7 +78,7 @@ spec:
             - name: DATABASE_API_URL
               value: "http://database-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
-              value: "http://inky.local:9502"
+              value: "https://inky.local:9502"
       volumes:
         - name: file-server-dev
           persistentVolumeClaim:
