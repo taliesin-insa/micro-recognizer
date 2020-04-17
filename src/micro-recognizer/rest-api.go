@@ -280,7 +280,7 @@ func main() {
 	if fileServerEnvExists {
 		FileServerURL = fileServerEnvVal
 	} else {
-		FileServerURL = "http://inky.local:9501"
+		FileServerURL = "https://inky.local:9501"
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
