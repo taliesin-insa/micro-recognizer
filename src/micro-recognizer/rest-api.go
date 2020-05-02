@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/taliesin-insa/lib-auth"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +17,7 @@ import (
 
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
+var DatabasePassword string
 var FileServerURL string
 
 const (
@@ -84,6 +86,37 @@ type LineImg struct {
 
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
+func checkPermission(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("ReqFromCron") != "" { // request from cron
+		if r.Header.Get("Authorization") == DatabasePassword {
+			return true
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("[MICRO-RECO] Incorrect authorization header received from cron"))
+			return false
+		}
+	} else { // request from GUI
+		user, err, authStatusCode := lib_auth.AuthenticateUser(r)
+
+		// check if there was an error during the authentication or if the user wasn't authenticated
+		if err != nil {
+			log.Printf("[ERROR] Check authentication: %v", err.Error())
+			w.WriteHeader(authStatusCode)
+			w.Write([]byte("[MICRO-RECO] Couldn't verify identity"))
+			return false
+		}
+
+		// check if the authenticated user has sufficient permissions to call this endpoint
+		if user.Role != lib_auth.RoleAdmin {
+			log.Printf("[ERROR] Insufficient permission: want %v, was %v", lib_auth.RoleAdmin, user.Role)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("[MICRO-RECO] Insufficient permissions to export"))
+			return false
+		}
+		return true
+	}
+}
+
 /* Request to retrieve a given number of pictures from the database */
 func getPictures(client *http.Client) ([]Picture, error) {
 
@@ -92,6 +125,8 @@ func getPictures(client *http.Client) ([]Picture, error) {
 		log.Printf("[ERROR] Create GET request to DB: %v", err.Error())
 		return nil, err
 	}
+
+	request.Header.Set("Authorization", DatabasePassword)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -166,7 +201,6 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadClo
 	}
 
 	return response.Body, nil
-
 }
 
 /* Request to send suggestions made by the recognizer to the database */
@@ -178,6 +212,8 @@ func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 		log.Printf("[ERROR] Create PUT request to DB: %v", err.Error())
 		return err
 	}
+
+	request.Header.Set("Authorization", DatabasePassword)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -209,59 +245,65 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[INFO] sendImgs joined")
 
-	// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
-	w.WriteHeader(http.StatusAccepted)
+	hasPermission := checkPermission(w, r)
 
-	client := &http.Client{}
+	if !hasPermission {
+		return
+	} else {
+		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
+		w.WriteHeader(http.StatusAccepted)
 
-	// we repeat the operation until there isn't anymore images to translate with the recognizer
+		client := &http.Client{}
 
-	var receivedPictures = NbOfImagesToSend
-	var count = 1
-	// golang version of a while
-	for receivedPictures == NbOfImagesToSend {
-		log.Printf("[INFO] ===== Turn %d =====", count)
+		// we repeat the operation until there isn't anymore images to translate with the recognizer
 
-		pictures, err := getPictures(client)
-		if err != nil {
-			return
+		var receivedPictures = NbOfImagesToSend
+		var count = 1
+		// golang version of a while
+		for receivedPictures == NbOfImagesToSend {
+			log.Printf("[INFO] ===== Turn %d =====", count)
+
+			pictures, err := getPictures(client)
+			if err != nil {
+				return
+			}
+
+			log.Printf("[INFO] Pictures received")
+
+			receivedPictures = len(pictures)
+			if receivedPictures == 0 {
+				log.Printf("[INFO] No more images to send to recognizer (0 received)\nsendImgs finished")
+				return
+			}
+
+			// create body to send to recognizer
+			var lineImgs []LineImg
+			for _, picture := range pictures {
+				lineImgs = append(lineImgs, LineImg{
+					Id:  picture.Id,
+					Url: FileServerURL + picture.Url,
+				})
+			}
+
+			resBody, err := getSuggestionsFromReco(lineImgs, client)
+			if err != nil {
+				return
+			}
+
+			log.Printf("[INFO] Suggestions received")
+
+			err = updatePictures(resBody, client)
+			if err != nil {
+				return
+			}
+
+			log.Printf("[INFO] Pictures updated")
+			count++
 		}
 
-		log.Printf("[INFO] Pictures received")
-
-		receivedPictures = len(pictures)
-		if receivedPictures == 0 {
-			log.Printf("[INFO] No more images to send to recognizer (0 received)\nsendImgs finished")
-			return
-		}
-
-		// create body to send to recognizer
-		var lineImgs []LineImg
-		for _, picture := range pictures {
-			lineImgs = append(lineImgs, LineImg{
-				Id:  picture.Id,
-				Url: FileServerURL + picture.Url,
-			})
-		}
-
-		resBody, err := getSuggestionsFromReco(lineImgs, client)
-		if err != nil {
-			return
-		}
-
-		log.Printf("[INFO] Suggestions received")
-
-		err = updatePictures(resBody, client)
-		if err != nil {
-			return
-		}
-
-		log.Printf("[INFO] Pictures updated")
-		count++
+		log.Printf("[INFO] sendImgs finished")
+		return
 	}
-
-	log.Printf("[INFO] sendImgs finished")
-	return
 }
 
 //////////////////// MAIN ////////////////////
@@ -274,6 +316,8 @@ func main() {
 	} else {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
 	}
+
+	DatabasePassword = os.Getenv("CLUSTER_INTERNAL_PASSWORD")
 
 	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
 

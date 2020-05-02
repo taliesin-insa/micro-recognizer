@@ -29,13 +29,19 @@ spec:
             - mountPath: "/snippets/"
               name: file-server
           env:
+            - name: AUTH_API_URL
+              value: "http://auth-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: MICRO_ENVIRONMENT
               value: "production"
             - name: DATABASE_API_URL
               value: "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
               value: "https://inky.local:9501"
-
+            - name: CLUSTER_INTERNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
       volumes:
         - name: file-server
           persistentVolumeClaim:
@@ -73,12 +79,19 @@ spec:
             - mountPath: "/snippets/"
               name: file-server-dev
           env:
+            - name: AUTH_API_URL
+              value: "http://auth-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: MICRO_ENVIRONMENT
               value: "dev"
             - name: DATABASE_API_URL
               value: "http://database-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
               value: "https://inky.local:9502"
+            - name: CLUSTER_INTERNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
       volumes:
         - name: file-server-dev
           persistentVolumeClaim:
