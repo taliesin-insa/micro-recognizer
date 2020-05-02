@@ -120,7 +120,7 @@ func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 /* Request to retrieve a given number of pictures from the database */
 func getPictures(client *http.Client) ([]Picture, error) {
 
-	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/snippets/"+strconv.Itoa(NbOfImagesToSend), nil)
+	request, err := http.NewRequest(http.MethodGet, DatabaseAPI+"/db/retrieve/recognizer/"+strconv.Itoa(NbOfImagesToSend), nil)
 	if err != nil {
 		log.Printf("[ERROR] Create GET request to DB: %v", err.Error())
 		return nil, err
@@ -201,7 +201,6 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadClo
 	}
 
 	return response.Body, nil
-
 }
 
 /* Request to send suggestions made by the recognizer to the database */
@@ -229,7 +228,7 @@ func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 			log.Printf("[ERROR] Error during PUT request to DB: %d, %v", response.StatusCode, string(body))
 			return errors.New("bad status")
 		} else {
-			log.Printf("[WARNING] Minor rrror during PUT request to DB, status received= %d, expected=204, body=%v", response.StatusCode, string(body))
+			log.Printf("[WARNING] Minor error during PUT request to DB, status received= %d, expected=204, body=%v", response.StatusCode, string(body))
 		}
 	}
 
@@ -325,7 +324,7 @@ func main() {
 	if fileServerEnvExists {
 		FileServerURL = fileServerEnvVal
 	} else {
-		FileServerURL = "http://inky.local:9501"
+		FileServerURL = "https://inky.local:9501"
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
