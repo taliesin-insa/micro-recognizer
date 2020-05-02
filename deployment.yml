@@ -36,12 +36,12 @@ spec:
             - name: DATABASE_API_URL
               value: "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
-              value: "http://inky.local:9501"
-				    - name: CLUSTER_INTERNAL_PASSWORD
-						  valueFrom:
-						    secretKeyRef:
-						      name: database-secrets
-						      key: password
+              value: "https://inky.local:9501"
+            - name: CLUSTER_INTERNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
       volumes:
         - name: file-server
           persistentVolumeClaim:
@@ -86,12 +86,12 @@ spec:
             - name: DATABASE_API_URL
               value: "http://database-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
             - name: FILESERVER_URL
-              value: "http://inky.local:9502"
+              value: "https://inky.local:9502"
             - name: CLUSTER_INTERNAL_PASSWORD
-						  valueFrom:
-						    secretKeyRef:
-						      name: database-secrets
-						      key: password
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
       volumes:
         - name: file-server-dev
           persistentVolumeClaim:
