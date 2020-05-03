@@ -13,12 +13,14 @@ spec:
           containers:
           - name: micro-recognizer-waker
             image: byrnedo/alpine-curl
-            envFrom:
-            - secretRef:
-                name: database-secrets
-                key: password
+            env:
+            - name: DBSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
             command: ["/bin/sh"]
-            args: ["-c", "curl -H "Authorization: $database-secrets" -H "ReqFromCron: true" -X POST \"http://recognizer-api.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
+            args: ["-c", "curl -H \"ReqFromCron: true\" -H \"Authorization: $DBSECRET\" -X POST \"http://recognizer-api.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
 
           restartPolicy: OnFailure
 

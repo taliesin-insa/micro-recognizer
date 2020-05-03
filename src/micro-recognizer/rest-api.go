@@ -88,14 +88,19 @@ type LineImg struct {
 
 func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 	if r.Header.Get("ReqFromCron") != "" { // request from cron
+		log.Printf("[INFO] Request from CRON")
+
 		if r.Header.Get("Authorization") == DatabasePassword {
 			return true
 		} else {
+			log.Printf("[DEBUG] CRON with bad header, received [%v], expected [%v]", r.Header.Get("Authorization"), DatabasePassword)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("[MICRO-RECO] Incorrect authorization header received from cron"))
 			return false
 		}
 	} else { // request from GUI
+		log.Printf("[INFO] Request from GUI")
+
 		user, err, authStatusCode := lib_auth.AuthenticateUser(r)
 
 		// check if there was an error during the authentication or if the user wasn't authenticated
@@ -110,7 +115,7 @@ func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 		if user.Role != lib_auth.RoleAdmin {
 			log.Printf("[ERROR] Insufficient permission: want %v, was %v", lib_auth.RoleAdmin, user.Role)
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("[MICRO-RECO] Insufficient permissions to export"))
+			w.Write([]byte("[MICRO-RECO] Insufficient permissions to call Laia"))
 			return false
 		}
 		return true
@@ -248,6 +253,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	hasPermission := checkPermission(w, r)
 
 	if !hasPermission {
+		log.Printf("[INFO] Received request didn't have sufficient permissions")
 		return
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
