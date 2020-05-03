@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -317,7 +318,7 @@ func main() {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
 	}
 
-	DatabasePassword = os.Getenv("CLUSTER_INTERNAL_PASSWORD")
+	DatabasePassword = fmt.Sprintf("%x", sha256.Sum256([]byte(os.Getenv("CLUSTER_INTERNAL_PASSWORD"))))
 
 	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
 
