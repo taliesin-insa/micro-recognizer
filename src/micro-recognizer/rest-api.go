@@ -19,6 +19,7 @@ import (
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
 var DatabasePassword string
+var DatabasePasswordHashed string
 var FileServerURL string
 
 const (
@@ -322,7 +323,8 @@ func main() {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
 	}
 
-	DatabasePassword = fmt.Sprintf("%x", sha256.Sum256([]byte(os.Getenv("CLUSTER_INTERNAL_PASSWORD"))))
+	DatabasePassword = os.Getenv("CLUSTER_INTERNAL_PASSWORD")
+	DatabasePasswordHashed = fmt.Sprintf("%x", sha256.Sum256([]byte(DatabasePassword)))
 
 	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
 
