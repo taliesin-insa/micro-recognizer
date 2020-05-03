@@ -15,8 +15,8 @@ spec:
             image: byrnedo/alpine-curl
             envFrom:
             - secretRef:
-                name: database-secrets
-                key: password
+              name: database-secrets
+              key: password
             command: ["/bin/sh"]
             args: ["-c", "curl -H "Authorization: $database-secrets" -H "ReqFromCron: true" -X POST \"http://recognizer-dev-api.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
 
