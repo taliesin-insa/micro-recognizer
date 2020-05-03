@@ -13,7 +13,7 @@ spec:
           containers:
           - name: micro-recognizer-waker
             image: byrnedo/alpine-curl
-			env:
+            env:
             - name: DBSECRET
               valueFrom:
                 secretKeyRef:
