@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: micro-recognizer-waker
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/1 * * * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 3
   jobTemplate:
@@ -18,7 +18,7 @@ spec:
                 name: database-secrets
                 key: password
             command: ["/bin/sh"]
-            args: ["-c", "curl -H "Authorization: $database-secrets" -H "ReqFromCron: true" -X POST \"http://recognizer-api.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
+            args: ["-c", "curl -H "Authorization: $database-secrets" -H "ReqFromCron: true" -X POST \"http://recognizer-dev-api.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
 
           restartPolicy: OnFailure
 
