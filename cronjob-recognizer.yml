@@ -17,7 +17,13 @@ spec:
             - secretRef:
                 name: database-secrets
             command: ["/bin/sh"]
-            args: ["-c", "curl -H \"Authorization: $database-secrets\" -H \"ReqFromCron: true\" -X POST \"http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
+            args: ["-c", "curl -H \"Authorization: $DBSECRET\" -H \"ReqFromCron: true\" -X POST \"http://recognizer-api-dev.gitlab-managed-apps.svc.cluster.local:8080/recognizer/sendImgs\""]
+			env:
+            - name: DBSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: password
 
           restartPolicy: OnFailure
 
