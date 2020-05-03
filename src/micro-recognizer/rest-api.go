@@ -89,6 +89,8 @@ type LineImg struct {
 
 func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 	if r.Header.Get("ReqFromCron") != "" { // request from cron
+		log.Printf("[INFO] Request from CRON")
+
 		if r.Header.Get("Authorization") == DatabasePassword {
 			return true
 		} else {
@@ -97,6 +99,8 @@ func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 	} else { // request from GUI
+		log.Printf("[INFO] Request from GUI")
+
 		user, err, authStatusCode := lib_auth.AuthenticateUser(r)
 
 		// check if there was an error during the authentication or if the user wasn't authenticated
