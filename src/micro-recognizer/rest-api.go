@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +18,6 @@ import (
 //////////////////// CONSTS ////////////////////
 var DatabaseAPI string
 var DatabasePassword string
-var DatabasePasswordHashed string
 var FileServerURL string
 
 const (
@@ -89,9 +87,6 @@ type LineImg struct {
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
 func checkPermission(w http.ResponseWriter, r *http.Request) bool {
-	for key, val := range r.Header {
-		log.Printf("[DEBUG] Header => %v : %v", key, val)
-	}
 	if r.Header.Get("ReqFromCron") != "" { // request from cron
 		log.Printf("[INFO] Request from CRON")
 
@@ -120,7 +115,7 @@ func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 		if user.Role != lib_auth.RoleAdmin {
 			log.Printf("[ERROR] Insufficient permission: want %v, was %v", lib_auth.RoleAdmin, user.Role)
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("[MICRO-RECO] Insufficient permissions to export"))
+			w.Write([]byte("[MICRO-RECO] Insufficient permissions to call Laia"))
 			return false
 		}
 		return true
@@ -329,7 +324,6 @@ func main() {
 	}
 
 	DatabasePassword = os.Getenv("CLUSTER_INTERNAL_PASSWORD")
-	DatabasePasswordHashed = fmt.Sprintf("%x", sha256.Sum256([]byte(DatabasePassword)))
 
 	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
 
