@@ -254,6 +254,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	hasPermission := checkPermission(w, r)
 
 	if !hasPermission {
+		log.Printf("[INFO] Received request didn't have sufficient permissions")
 		return
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
