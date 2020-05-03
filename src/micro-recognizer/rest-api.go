@@ -89,6 +89,9 @@ type LineImg struct {
 //////////////////// INTERMEDIATE REQUESTS ////////////////////
 
 func checkPermission(w http.ResponseWriter, r *http.Request) bool {
+	for key, val := range r.Header {
+		log.Printf("[DEBUG] Header => %v : %v", key, val)
+	}
 	if r.Header.Get("ReqFromCron") != "" { // request from cron
 		log.Printf("[INFO] Request from CRON")
 
