@@ -95,6 +95,7 @@ func checkPermission(w http.ResponseWriter, r *http.Request) bool {
 		if r.Header.Get("Authorization") == DatabasePassword {
 			return true
 		} else {
+			log.Printf("[DEBUG] CRON with bad header, received %v, expected %v", r.Header.Get("Authorization"), DatabasePassword)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("[MICRO-RECO] Incorrect authorization header received from cron"))
 			return false
