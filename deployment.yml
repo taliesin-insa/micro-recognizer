@@ -23,6 +23,7 @@ spec:
       containers:
         - name: recognizer
           image: clyde.local:5005/taliesin/micro-recognizer/master:prod
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           volumeMounts:
