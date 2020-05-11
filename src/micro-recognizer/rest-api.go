@@ -260,6 +260,10 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("[MICRO-RECOGNIZER] Request accepted"))
 
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush() // forces the response writer to send the response
+		}
+
 		client := &http.Client{}
 
 		// we repeat the operation until there isn't anymore images to translate with the recognizer
