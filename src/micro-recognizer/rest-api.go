@@ -312,7 +312,6 @@ func recognizerEndpoint(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("[MICRO-RECOGNIZER] Request accepted"))
 
 		go sendImgsToRecognizer() // start an independent goroutine to execute the loop
 
