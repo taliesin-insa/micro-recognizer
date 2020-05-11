@@ -20,8 +20,6 @@ var DatabaseAPI string
 var DatabasePassword string
 var FileServerURL string
 
-var HasPermission = false
-
 const (
 	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
@@ -306,25 +304,19 @@ func recognizerEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[INFO] sendImgs joined")
 
-	HasPermission = checkPermission(w, r)
+	hasPermission := checkPermission(w, r)
 
-	if !HasPermission {
+	if !hasPermission {
 		log.Printf("[INFO] Received request didn't have sufficient permissions")
 		return
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("[MICRO-RECOGNIZER] Request accepted"))
-		return
-	}
-}
 
-func wrapToLoop(handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handler(w, r) // call original handler, to send response regarding permissions
-		if HasPermission {
-			sendImgsToRecognizer() // main loop done after sending response
-		}
+		go sendImgsToRecognizer() // start an independent goroutine to execute the loop
+
+		return
 	}
 }
 
@@ -352,7 +344,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/recognizer", home)
 
-	router.HandleFunc("/recognizer/sendImgs", wrapToLoop(recognizerEndpoint)).Methods("POST")
+	router.HandleFunc("/recognizer/sendImgs", recognizerEndpoint).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 
