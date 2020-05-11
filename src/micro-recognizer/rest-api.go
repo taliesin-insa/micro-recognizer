@@ -20,6 +20,8 @@ var DatabaseAPI string
 var DatabasePassword string
 var FileServerURL string
 
+var HasPermission = false
+
 const (
 	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
 
@@ -240,82 +242,89 @@ func updatePictures(reqBody io.ReadCloser, client *http.Client) error {
 	return nil
 }
 
+//////////////////// FUNCTION LOOPING OVER IMAGES ////////////////////
+
+func sendImgsToRecognizer() {
+	client := &http.Client{}
+
+	// we repeat the operation until there isn't anymore images to translate with the recognizer
+
+	var receivedPictures = NbOfImagesToSend
+	var count = 1
+	// golang version of a while
+	for receivedPictures == NbOfImagesToSend {
+		log.Printf("[INFO] ===== Turn %d =====", count)
+
+		pictures, err := getPictures(client)
+		if err != nil {
+			return
+		}
+
+		log.Printf("[INFO] Pictures received")
+
+		receivedPictures = len(pictures)
+		if receivedPictures == 0 {
+			log.Printf("[INFO] No more images to send to recognizer (0 received)\nsendImgs finished")
+			return
+		}
+
+		// create body to send to recognizer
+		var lineImgs []LineImg
+		for _, picture := range pictures {
+			lineImgs = append(lineImgs, LineImg{
+				Id:  picture.Id,
+				Url: FileServerURL + picture.Url,
+			})
+		}
+
+		resBody, err := getSuggestionsFromReco(lineImgs, client)
+		if err != nil {
+			return
+		}
+
+		log.Printf("[INFO] Suggestions received")
+
+		err = updatePictures(resBody, client)
+		if err != nil {
+			return
+		}
+
+		log.Printf("[INFO] Pictures updated")
+		count++
+	}
+
+	log.Printf("[INFO] sendImgs finished")
+}
+
 //////////////////// API FUNCTIONS ////////////////////
 func home(w http.ResponseWriter, r *http.Request) {
 	log.Printf("HomeLink joined")
 	fmt.Fprint(w, "[MICRO-RECOGNIZER] HomeLink joined")
 }
 
-func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
+func recognizerEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[INFO] sendImgs joined")
 
-	hasPermission := checkPermission(w, r)
+	HasPermission = checkPermission(w, r)
 
-	if !hasPermission {
+	if !HasPermission {
 		log.Printf("[INFO] Received request didn't have sufficient permissions")
 		return
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("[MICRO-RECOGNIZER] Request accepted"))
-
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush() // forces the response writer to send the response
-		} else {
-			log.Println("[DEBUG] Can't flush ResponseWriter")
-		}
-
-		client := &http.Client{}
-
-		// we repeat the operation until there isn't anymore images to translate with the recognizer
-
-		var receivedPictures = NbOfImagesToSend
-		var count = 1
-		// golang version of a while
-		for receivedPictures == NbOfImagesToSend {
-			log.Printf("[INFO] ===== Turn %d =====", count)
-
-			pictures, err := getPictures(client)
-			if err != nil {
-				return
-			}
-
-			log.Printf("[INFO] Pictures received")
-
-			receivedPictures = len(pictures)
-			if receivedPictures == 0 {
-				log.Printf("[INFO] No more images to send to recognizer (0 received)\nsendImgs finished")
-				return
-			}
-
-			// create body to send to recognizer
-			var lineImgs []LineImg
-			for _, picture := range pictures {
-				lineImgs = append(lineImgs, LineImg{
-					Id:  picture.Id,
-					Url: FileServerURL + picture.Url,
-				})
-			}
-
-			resBody, err := getSuggestionsFromReco(lineImgs, client)
-			if err != nil {
-				return
-			}
-
-			log.Printf("[INFO] Suggestions received")
-
-			err = updatePictures(resBody, client)
-			if err != nil {
-				return
-			}
-
-			log.Printf("[INFO] Pictures updated")
-			count++
-		}
-
-		log.Printf("[INFO] sendImgs finished")
 		return
+	}
+}
+
+func wrapToLoop(handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r) // call original handler, to send response regarding permissions
+		if HasPermission {
+			sendImgsToRecognizer() // main loop done after sending response
+		}
 	}
 }
 
@@ -343,7 +352,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/recognizer", home)
 
-	router.HandleFunc("/recognizer/sendImgs", sendImgsToRecognizer).Methods("POST")
+	router.HandleFunc("/recognizer/sendImgs", wrapToLoop(recognizerEndpoint)).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 
