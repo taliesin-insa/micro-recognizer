@@ -258,6 +258,7 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// we send a response directly, to avoid blocking the caller while we annotate images with the recognizer
 		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(""))
 
 		client := &http.Client{}
 
