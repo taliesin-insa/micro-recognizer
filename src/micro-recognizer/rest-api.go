@@ -262,6 +262,8 @@ func sendImgsToRecognizer(w http.ResponseWriter, r *http.Request) {
 
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush() // forces the response writer to send the response
+		} else {
+			log.Println("[DEBUG] Can't flush ResponseWriter")
 		}
 
 		client := &http.Client{}
