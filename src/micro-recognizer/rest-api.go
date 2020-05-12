@@ -339,7 +339,7 @@ func main() {
 		FileServerURL = "https://inky.local:9501"
 	}
 
-	// FileServer URL
+	// Recognizer URL
 	recognizerEnvVal, recognizerEnvExists := os.LookupEnv("RECOGNIZER_API_URL")
 	if recognizerEnvExists {
 		RecognizerAPI = recognizerEnvVal
