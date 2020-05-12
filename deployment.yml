@@ -36,6 +36,8 @@ spec:
               value: "production"
             - name: DATABASE_API_URL
               value: "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
+            - name: RECOGNIZER_API_URL
+              value: "http://raoh.educ.insa:12191"
             - name: FILESERVER_URL
               value: "https://inky.local:9501"
             - name: CLUSTER_INTERNAL_PASSWORD
@@ -86,6 +88,8 @@ spec:
               value: "dev"
             - name: DATABASE_API_URL
               value: "http://database-dev-api.gitlab-managed-apps.svc.cluster.local:8080"
+            - name: RECOGNIZER_API_URL
+              value: "http://raoh.educ.insa:12191"
             - name: FILESERVER_URL
               value: "https://inky.local:9502"
             - name: CLUSTER_INTERNAL_PASSWORD

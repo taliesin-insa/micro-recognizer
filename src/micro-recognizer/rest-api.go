@@ -19,13 +19,11 @@ import (
 var DatabaseAPI string
 var DatabasePassword string
 var FileServerURL string
+var RecognizerAPI string
 
 const (
-	LaiaDaemonAPI string = "http://raoh.educ.insa:12191"
-
-	NbOfImagesToSend int = 25
-
-	RecoAnnotatorId string = "$taliesin_recognizer"
+	NbOfImagesToSend int    = 25
+	RecoAnnotatorId  string = "$taliesin_recognizer"
 )
 
 //////////////////// STRUCTS ////////////////////
@@ -180,7 +178,7 @@ func getSuggestionsFromReco(lineImgs []LineImg, client *http.Client) (io.ReadClo
 	}
 
 	// create and send request to recognizer
-	request, err := http.NewRequest(http.MethodGet, LaiaDaemonAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyJSON))
+	request, err := http.NewRequest(http.MethodGet, RecognizerAPI+"/laiaDaemon/recognizeImgs", bytes.NewBuffer(reqBodyJSON))
 	if err != nil {
 		log.Printf("[ERROR] Create GET request to recognizer: %v", err.Error())
 		return nil, err
@@ -321,25 +319,35 @@ func recognizerEndpoint(w http.ResponseWriter, r *http.Request) {
 
 //////////////////// MAIN ////////////////////
 func main() {
-	// get environment variables
+	// Get env variables
+	// Database API
 	dbEnvVal, dbEnvExists := os.LookupEnv("DATABASE_API_URL")
-
 	if dbEnvExists {
 		DatabaseAPI = dbEnvVal
 	} else {
 		DatabaseAPI = "http://database-api.gitlab-managed-apps.svc.cluster.local:8080"
 	}
 
+	// Database's Kubernetes secret
 	DatabasePassword = os.Getenv("CLUSTER_INTERNAL_PASSWORD")
 
+	// FileServer URL
 	fileServerEnvVal, fileServerEnvExists := os.LookupEnv("FILESERVER_URL")
-
 	if fileServerEnvExists {
 		FileServerURL = fileServerEnvVal
 	} else {
 		FileServerURL = "https://inky.local:9501"
 	}
 
+	// FileServer URL
+	recognizerEnvVal, recognizerEnvExists := os.LookupEnv("RECOGNIZER_API_URL")
+	if recognizerEnvExists {
+		RecognizerAPI = recognizerEnvVal
+	} else {
+		RecognizerAPI = "http://raoh.educ.insa:12191"
+	}
+
+	// Start API
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/recognizer", home)
 
